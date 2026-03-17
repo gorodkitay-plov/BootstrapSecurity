@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit User</title>
+</head>
+
+<body>
+<form th:action="@{/logout}" method="post">
+    <input type="hidden"
+           th:name="${_csrf.parameterName}"
+           th:value="${_csrf.token}"/>
+    <button type="submit">Logout</button>
+</form>
+
+<h2>Edit User</h2>
+
+<form th:action="@{/admin/{id}(id=${user.id})}"
+      th:object="${user}"
+      method="post">
+
+    <input type="hidden" name="_method" value="patch"/>
+
+    <label>Username</label>
+    <input type="text" th:field="*{username}" required>
+    <div style="color:red"
+         th:if="${#fields.hasErrors('username')}"
+         th:errors="*{username}"></div>
+
+    <br/><br/>
+
+    <label>Password</label>
+    <input type="password" th:field="*{password}" required>
+    <div style="color:red"
+         th:if="${#fields.hasErrors('password')}"
+         th:errors="*{password}"></div>
+
+    <br/><br/>
+
+    <label>Email</label>
+    <input type="email" th:field="*{email}" required>
+    <div style="color:red"
+         th:if="${#fields.hasErrors('email')}"
+         th:errors="*{email}"></div>
+
+    <br/><br/>
+
+    <label>Name</label>
+    <input type="text"
+           th:field="*{name}"
+           pattern="[A-Za-zА-Яа-яЁё]+"
+           required>
+    <div style="color:red"
+         th:if="${#fields.hasErrors('name')}"
+         th:errors="*{name}"></div>
+
+    <br/><br/>
+
+    <label>Surname</label>
+    <input type="text"
+           th:field="*{surname}"
+           pattern="[A-Za-zА-Яа-яЁё]+"
+           required>
+    <div style="color:red"
+         th:if="${#fields.hasErrors('surname')}"
+         th:errors="*{surname}"></div>
+
+    <br/><br/>
+
+    <label>Age</label>
+    <input type="number"
+           th:field="*{age}"
+           min="1"
+           max="120"
+           required>
+    <div style="color:red"
+         th:if="${#fields.hasErrors('age')}"
+         th:errors="*{age}"></div>
+
+    <br/><br/>
+
+    <input type="submit" value="Update User">
+
+</form>
+
+<br/>
+
+<a th:href="@{/admin}">Back to users list</a>
+
+</body>
+</html>
