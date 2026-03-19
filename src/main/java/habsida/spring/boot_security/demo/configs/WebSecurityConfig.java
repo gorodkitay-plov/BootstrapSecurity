@@ -1,25 +1,25 @@
 package habsida.spring.boot_security.demo.configs;
 
+import habsida.spring.boot_security.demo.repository.RoleRepository;
+import habsida.spring.boot_security.demo.model.Role;
+import habsida.spring.boot_security.demo.model.User;
+import habsida.spring.boot_security.demo.service.UserService;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
+import java.util.Set;
+
 @Configuration
-@EnableWebSecurity
 public class WebSecurityConfig {
+
     private final SuccessUserHandler successUserHandler;
 
     public WebSecurityConfig(SuccessUserHandler successUserHandler) {
-
         this.successUserHandler = successUserHandler;
     }
 
@@ -27,41 +27,56 @@ public class WebSecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/login").permitAll()
+                        .requestMatchers("/login").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/user/**").hasAnyRole("USER", "ADMIN")
-                    .anyRequest().authenticated()
+                        .requestMatchers("/user/**").hasAnyRole("USER","ADMIN")
+                        .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
+                        .loginPage("/login")
                         .loginProcessingUrl("/login")
-                    .successHandler(successUserHandler)
-                    .permitAll()
+                        .successHandler(successUserHandler)
+                        .permitAll()
                 )
-                .logout(LogoutConfigurer::permitAll);
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login")
+                        .permitAll()
+                );
+
         return http.build();
-    }
-
-    // ✅ InMemory пользователи
-    @Bean
-    public UserDetailsService userDetailsService() {
-
-        UserDetails user = User.builder()
-                .username("user")
-                .password(passwordEncoder().encode("user"))
-                .roles("USER")
-                .build();
-
-        UserDetails admin = User.builder()
-                .username("admin")
-                .password(passwordEncoder().encode("admin"))
-                .roles("ADMIN")
-                .build();
-
-        return new InMemoryUserDetailsManager(user, admin);
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    // ===== ИНИЦИАЛИЗАЦИЯ РОЛЕЙ И АДМИНА =====
+    @Bean
+    public CommandLineRunner init(UserService userService, RoleRepository roleRepository) {
+        return args -> {
+            if (roleRepository.findByName("ROLE_ADMIN") == null) {
+                roleRepository.save(new Role("ROLE_ADMIN"));
+            }
+            if (roleRepository.findByName("ROLE_USER") == null) {
+                roleRepository.save(new Role("ROLE_USER"));
+            }
+
+            if (userService.findByUsername("admin") == null) {
+                User admin = new User();
+                admin.setUsername("admin");
+                admin.setPassword(passwordEncoder().encode("admin"));
+                admin.setName("Admin");
+                admin.setSurname("Adminov");
+                admin.setAge(30);
+                admin.setEmail("admin@mail.com");
+
+                Role adminRole = roleRepository.findByName("ROLE_ADMIN");
+                admin.setRoles(Set.of(adminRole));
+
+                userService.saveUser(admin);
+            }
+        };
     }
 }
