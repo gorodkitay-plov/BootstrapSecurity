@@ -59,9 +59,6 @@ public class WebSecurityConfig {
             if (roleRepository.findByName("ROLE_ADMIN") == null) {
                 roleRepository.save(new Role("ROLE_ADMIN"));
             }
-            if (roleRepository.findByName("ROLE_USER") == null) {
-                roleRepository.save(new Role("ROLE_USER"));
-            }
 
             if (userService.findByUsername("admin") == null) {
                 User admin = new User();

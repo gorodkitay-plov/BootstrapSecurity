@@ -10,7 +10,8 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/admin")
@@ -27,6 +28,7 @@ public class UserController {
     @GetMapping
     public String users(Model model) {
         model.addAttribute("users", userService.getAllUsers());
+        model.addAttribute("rolesList", roleRepository.findAll());
         return "users";
     }
 
@@ -75,23 +77,18 @@ public class UserController {
 
     @PatchMapping("/{id}")
     public String update(@PathVariable Long id,
-                         @Valid @ModelAttribute("user") User user,
-                         BindingResult bindingResult,
+                         @ModelAttribute("user") User user,
                          @RequestParam(value = "rolesSelected", required = false)
-                             Set<String> rolesSelected, Model model) {
+                         Set<String> rolesSelected) {
 
+        // username check
         if (userService.isUsernameTakenForUpdate(user.getUsername(), id)) {
-            bindingResult.rejectValue("username","","Username уже существует");
+            return "redirect:/admin";
         }
 
+        // roles check
         if (rolesSelected == null || rolesSelected.isEmpty()) {
-            bindingResult.rejectValue("roles", "", "Выберите хотя бы одну роль");
-        }
-
-        if (bindingResult.hasErrors()) {
-            model.addAttribute("rolesList", roleRepository.findAll());
-            return "editUser";
-
+            return "redirect:/admin";
         }
 
         Set<Role> roles = roleRepository.findAll().stream()
@@ -101,7 +98,100 @@ public class UserController {
         user.setRoles(roles);
 
         userService.updateUser(id, user);
+
         return "redirect:/admin";
+    }
+
+    @PatchMapping("/{id}/ajax")
+    @ResponseBody
+    public Map<String, Object> updateAjax(@PathVariable Long id,
+                                          @RequestBody Map<String, Object> body) {
+
+        Map<String, Object> response = new HashMap<>();
+        Map<String, String> errors = new HashMap<>();
+
+        // получаем поля из JSON
+        String username = (String) body.get("username");
+        String name = (String) body.get("name");
+        String surname = (String) body.get("surname");
+        String email = (String) body.get("email");
+
+        Integer age = null;
+        try {
+            Object ageObj = body.get("age");
+            if (ageObj != null) {
+                age = Integer.valueOf(ageObj.toString());
+            }
+        } catch (NumberFormatException e) {
+            errors.put("age", "Возраст должен быть числом");
+        }
+
+        List<String> rolesSelected = (List<String>) body.get("rolesSelected");
+
+        // Валидация
+        if (username == null || username.isBlank()) {
+            errors.put("username", "Username обязателен");
+        } else if (userService.isUsernameTakenForUpdate(username, id)) {
+            errors.put("username", "Username уже существует");
+        }
+
+        if (name == null || name.isBlank()) {
+            errors.put("name", "Имя обязательно");
+        } else if (!name.matches("^[A-Za-zА-Яа-яЁё]+$")) {
+            errors.put("name", "Имя должно содержать только буквы");
+        }
+
+        if (surname == null || surname.isBlank()) {
+            errors.put("surname", "Фамилия обязательна");
+        } else if (!surname.matches("^[A-Za-zА-Яа-яЁё]+$")) {
+            errors.put("surname", "Фамилия должна содержать только буквы");
+        }
+
+        if (email == null || email.isBlank()) {
+            errors.put("email", "Email обязателен");
+        } else if (!email.matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
+            errors.put("email", "Некорректный email");
+        }
+
+        if (age == null) {
+            errors.put("age", "Возраст обязателен");
+        } else if (age < 1) {
+            errors.put("age", "Возраст должен быть больше 0");
+        } else if (age > 120) {
+            errors.put("age", "Возраст должен быть меньше 120");
+        }
+
+        if (rolesSelected == null || rolesSelected.isEmpty()) {
+            errors.put("roles", "Выберите хотя бы одну роль");
+        }
+
+        // Если есть ошибки, возвращаем их
+        if (!errors.isEmpty()) {
+            response.put("status", "error");
+            response.put("errors", errors);
+            return response;
+        }
+
+        // получаем пользователя из БД
+        User existingUser = userService.getUser(id);
+
+        existingUser.setUsername(username);
+        existingUser.setName(name);
+        existingUser.setSurname(surname);
+        existingUser.setEmail(email);
+        existingUser.setAge(age);
+
+        // роли
+        Set<Role> roles = roleRepository.findAll().stream()
+                .filter(r -> rolesSelected.contains(r.getName()))
+                .collect(Collectors.toSet());
+
+        existingUser.setRoles(roles);
+
+        userService.updateUser(id, existingUser);
+
+        response.put("status", "success");
+        return response;
     }
 
     @DeleteMapping("/{id}")
