@@ -29,7 +29,7 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/user/**").hasAnyRole("USER","ADMIN")
+                        .requestMatchers("/user/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
@@ -52,26 +52,27 @@ public class WebSecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    // ===== ИНИЦИАЛИЗАЦИЯ РОЛЕЙ И АДМИНА =====
     @Bean
-    public CommandLineRunner init(UserService userService, RoleRepository roleRepository) {
+    public CommandLineRunner init(UserService userService,
+                                  RoleRepository roleRepository,
+                                  PasswordEncoder passwordEncoder) {
         return args -> {
             if (roleRepository.findByName("ROLE_ADMIN") == null) {
                 roleRepository.save(new Role("ROLE_ADMIN"));
             }
-
+            if (roleRepository.findByName("ROLE_USER") == null) {
+                roleRepository.save(new Role("ROLE_USER"));
+            }
             if (userService.findByUsername("admin") == null) {
                 User admin = new User();
                 admin.setUsername("admin");
-                admin.setPassword("admin");
+                admin.setPassword(passwordEncoder.encode("admin"));
                 admin.setName("Admin");
                 admin.setSurname("Adminov");
                 admin.setAge(30);
                 admin.setEmail("admin@mail.com");
-
                 Role adminRole = roleRepository.findByName("ROLE_ADMIN");
                 admin.setRoles(Set.of(adminRole));
-
                 userService.saveUser(admin);
             }
         };

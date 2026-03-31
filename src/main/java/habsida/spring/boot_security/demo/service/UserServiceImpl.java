@@ -30,7 +30,6 @@ public class UserServiceImpl implements UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // ======= USERS =======
     @Override
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -38,7 +37,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void saveUser(User user) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        // шифруем только если пароль ещё не зашифрован
+        if (!user.getPassword().startsWith("$2a$") && !user.getPassword().startsWith("$2b$")) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
         userRepository.save(user);
     }
 
@@ -46,12 +48,15 @@ public class UserServiceImpl implements UserService {
     public void updateUser(Long id, User user) {
         User existingUser = userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
         user.setId(id);
 
-        if (user.getPassword() == null || user.getPassword().isEmpty()) {
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
             user.setPassword(existingUser.getPassword());
-        } else {
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            user.setRoles(existingUser.getRoles());
         }
 
         userRepository.save(user);
@@ -89,7 +94,6 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByUsername(username).orElse(null);
     }
 
-    // ======= ROLES =======
     public Role getRoleByName(String roleName) {
         return roleRepository.findByName(roleName);
     }
