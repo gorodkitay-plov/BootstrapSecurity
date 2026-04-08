@@ -37,12 +37,6 @@ public class UserController {
         return "users";
     }
 
-    @GetMapping("/usersapi")
-    public String apiPage(Model model) {
-        model.addAttribute("rolesList", roleRepository.findAll());
-        return "users-api";
-    }
-
     @GetMapping("/new")
     public String newUser(Model model) {
         model.addAttribute("user", new UserCreateDto());
